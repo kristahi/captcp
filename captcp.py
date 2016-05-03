@@ -2289,6 +2289,8 @@ class TcpConn:
                 (self.dipnum) + ((self.sport) + \
                 (self.dport)))
 
+        self.is_tcp = (type(packet.data) == dpkt.tcp.TCP)
+
 
     def __hash__(self):
         return self.iuid
@@ -2512,7 +2514,7 @@ class ConnectionContainer:
         if type(packet) != dpkt.ip.IP and type(packet) != dpkt.ip6.IP6:
             return False
 
-        if type(packet.data) != dpkt.tcp.TCP:
+        if type(packet.data) != dpkt.tcp.TCP and type(packet.data) != dpkt.udp.UDP:
             return False
 
         return True
@@ -2566,7 +2568,7 @@ class ConnectionContainer:
         if type(packet) != dpkt.ip.IP and type(packet) != dpkt.ip6.IP6:
             return
 
-        if type(packet.data) != dpkt.tcp.TCP:
+        if type(packet.data) != dpkt.tcp.TCP and type(packet.data) != dpkt.udp.UDP:
             return
 
         if self.capture_time_start == None:
@@ -3867,6 +3869,8 @@ class StatisticMod(Mod):
         max_data_length = 0
         index = StatisticMod.LABEL_DB_INDEX_UNIT
         for i in self.LABEL_DB:
+            if i not in statistic.user_data:
+                continue
             max_data_length = max(max_data_length,
                     len(str(statistic.user_data[i])) + len(self.LABEL_DB[i][index]))
 
@@ -3889,7 +3893,7 @@ class StatisticMod(Mod):
             self.cc.statistic.packets_tl_tcp += 1
         elif type(packet.data) == dpkt.udp.UDP:
             self.cc.statistic.packets_tl_udp += 1
-            raise PacketNotSupportedException()
+            #raise PacketNotSupportedException()
         elif type(packet.data) == dpkt.icmp.ICMP:
             self.cc.statistic.packets_tl_icmp += 1
             raise PacketNotSupportedException()
@@ -3922,6 +3926,23 @@ class StatisticMod(Mod):
         # called at the end of traxing to check values
         # or do some final calculations, based on intermediate
         # values
+        if sc.user_data["_flow_time_start"] != sc.user_data["_flow_time_end"]:
+            sc.user_data["duration-timedelta"] = sc.user_data["_flow_time_end"] - sc.user_data["_flow_time_start"]
+            sc.user_data["duration-timedelta"] =  Utils.ts_tofloat(sc.user_data["duration-timedelta"])
+
+        if sc.user_data["duration-timedelta"] > 0.0:
+            sc.user_data["link-layer-throughput-bitsecond"]        = "%.2f" % ((sc.user_data["link-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
+            sc.user_data["network-layer-throughput-bitsecond"]     = "%.2f" % ((sc.user_data["network-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
+            sc.user_data["transport-layer-throughput-bitsecond"]   = "%.2f" % ((sc.user_data["transport-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
+            sc.user_data["application-layer-throughput-bitsecond"] = "%.2f" % ((sc.user_data["application-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
+            # must be last operation!
+            # we convert duration-timedelta to string with floating point
+            # precision of .2
+            sc.user_data["duration-timedelta"] = "%.2f" % sc.user_data["duration-timedelta"]
+
+        if not sc.is_tcp:
+            return
+
         res = U.percent(sc.user_data["rexmt-data-bytes"], sc.user_data["application-layer-byte"])
         sc.user_data["rexmt-bytes-percent"] = "%.2f" % (res)
 
@@ -3938,20 +3959,6 @@ class StatisticMod(Mod):
             sc.user_data["tl-iats-min"] = "%d" % min(sc.user_data["_tl_iats"])
             sc.user_data["tl-iats-max"] = "%d" % max(sc.user_data["_tl_iats"])
             sc.user_data["tl-iats-avg"] = "%d" % numpy.mean(sc.user_data["_tl_iats"])
-
-        if sc.user_data["_flow_time_start"] != sc.user_data["_flow_time_end"]:
-            sc.user_data["duration-timedelta"] = sc.user_data["_flow_time_end"] - sc.user_data["_flow_time_start"]
-            sc.user_data["duration-timedelta"] =  Utils.ts_tofloat(sc.user_data["duration-timedelta"])
-
-        if sc.user_data["duration-timedelta"] > 0.0:
-            sc.user_data["link-layer-throughput-bitsecond"]        = "%.2f" % ((sc.user_data["link-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
-            sc.user_data["network-layer-throughput-bitsecond"]     = "%.2f" % ((sc.user_data["network-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
-            sc.user_data["transport-layer-throughput-bitsecond"]   = "%.2f" % ((sc.user_data["transport-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
-            sc.user_data["application-layer-throughput-bitsecond"] = "%.2f" % ((sc.user_data["application-layer-byte"] * 8) / sc.user_data["duration-timedelta"])
-            # must be last operation!
-            # we convert duration-timedelta to string with floating point
-            # precision of .2
-            sc.user_data["duration-timedelta"] = "%.2f" % sc.user_data["duration-timedelta"]
 
 
     def account_rexmt(self, sc, packet, pi, ts):
@@ -4021,6 +4028,9 @@ class StatisticMod(Mod):
         self.check_new_subconnection(sc)
 
         self.account_general_tcp_data(sc, ts, packet)
+
+        if type(packet.data) != dpkt.tcp.TCP:
+            return
 
         # .oO guaranteed TCP packet now
         pi = TcpPacketInfo(packet)
