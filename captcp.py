@@ -809,6 +809,11 @@ class Mod:
     def internal_pre_process_packet(self, ts, packet):
         """ this is a hidden preprocessing function, called for every packet"""
         assert(self.captcp != None)
+        #The tool doesn't handle identical src and dst ports (at all)
+        if type(packet) == dpkt.ip.IP or type(packet) == dpkt.ip6.IP6:
+            if type(packet.data) == dpkt.tcp.TCP or type(packet.data) == dpkt.udp.UDP:
+                if packet.data.sport == packet.data.dport:
+                    return
         self.cc.update(ts, packet)
         self.pre_process_packet(ts, packet)
 
