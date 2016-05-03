@@ -4409,6 +4409,12 @@ class StatisticMod(Mod):
         sc.user_data["_flow_time_start"] = None
         sc.user_data["_flow_time_end"]   = None
 
+        sc.user_data['src-ip'] = sc.sip
+        sc.user_data['dst-ip'] = sc.dip
+        sc.user_data['src-port'] = sc.sport
+        sc.user_data['dst-port'] = sc.dport
+
+
 
     def type_to_label(self, label):
         return self.LABEL_DB[label][StatisticMod.LABEL_DB_INDEX_DESCRIPTION]
