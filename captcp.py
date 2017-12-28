@@ -4005,7 +4005,7 @@ class ShowMod(Mod):
                         self.color_iter.infinite_next()
 
         pi = TcpPacketInfo(packet)
-        data_len = len(packet.data.data)
+        data_len = pi.applen
         time = Utils.ts_tofloat(ts - self.cc.capture_time_start)
 
         # color init
@@ -4030,7 +4030,7 @@ class ShowMod(Mod):
         line += " seq: %u:%u ack: %u win: %u urp: %u" % (
                 pi.seq, self.seq_plus(pi.seq, data_len),
                 pi.ack, pi.win, pi.urp)
-        line += " len: %d" % (len(packet.data.data))
+        line += " len: %d" % (data_len)
 
         line += self.color["end"]
         line += "\n"
