@@ -615,12 +615,22 @@ class IpPacketInfo(PacketInfo):
             self.sip = Converter.dpkt_addr_to_string(packet.src)
             self.dip = Converter.dpkt_addr_to_string(packet.dst)
             self.ipversion = "IP "
+            self.iplen = packet.len
+            self.tcplen = packet.len - (packet.hl * 4)
         elif type(packet) == dpkt.ip6.IP6:
             self.sip = socket.inet_ntop(socket.AF_INET6, packet.src)
             self.dip = socket.inet_ntop(socket.AF_INET6, packet.dst)
             self.ipversion = "IP6"
+            self.iplen = Info.IPv6_HEADER_LEN + packet.plen
+            if packet.nxt == dpkt.ip.IP_PROTO_TCP:
+                self.tcplen = packet.len - packet.plen
+            else:
+                raise InternalException("IPv6 extension header accounting not implemented!")
         else:
             raise InternalException("unknown protocol")
+
+        #TODO: it isn't this easy, e.g. misses VLAN headers etc.:
+        self.linklen = self.iplen + Info.ETHERNET_HEADER_LEN
 
         self.sport = int(self.tcp.sport)
         self.dport = int(self.tcp.dport)
@@ -659,12 +669,23 @@ class TcpPacketInfo(PacketInfo):
             self.sip = Converter.dpkt_addr_to_string(packet.src)
             self.dip = Converter.dpkt_addr_to_string(packet.dst)
             self.ipversion = "IP "
+            self.iplen = packet.len
+            self.tcplen = packet.len - (packet.hl * 4)
         elif type(packet) == dpkt.ip6.IP6:
             self.sip = socket.inet_ntop(socket.AF_INET6, packet.src)
             self.dip = socket.inet_ntop(socket.AF_INET6, packet.dst)
             self.ipversion = "IP6"
+            self.iplen = Info.IPv6_HEADER_LEN + packet.plen
+            if packet.nxt == dpkt.ip.IP_PROTO_TCP:
+                self.tcplen = packet.len - packet.plen
+            else:
+                raise InternalException("IPv6 extension header accounting not implemented!")
         else:
             raise InternalException("unknown protocol")
+
+        #TODO: it isn't this easy, e.g. misses VLAN headers etc.:
+        self.linklen = self.iplen + Info.ETHERNET_HEADER_LEN
+        self.applen = self.tcplen - (self.tcp.off * 4)
 
         self.sport = int(self.tcp.sport)
         self.dport = int(self.tcp.dport)
