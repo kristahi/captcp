@@ -2428,6 +2428,11 @@ class Connection(TcpConn):
 
         sc = SubConnection(self, packet)
 
+        if (sc.sport != self.sport and sc.sport != self.dport) \
+           or (sc.dport != self.sport and sc.dport != self.dport):
+            raise Exception("Connection.update: Mismatched packet: c: %s c.uid: %s sc: %s sc.uid=%s packet: %s" \
+                            % (self, self.uid, sc, sc.uid, repr(packet)))
+
         if self.capture_time_start == None:
             self.capture_time_start = ts
 
@@ -2446,6 +2451,9 @@ class Connection(TcpConn):
         if self.sc2 == sc:
             self.sc2.update(ts, packet)
             return
+
+        if self.sc2 != None and self.sc2 != sc:
+            raise Exception("Bad match conn<->subconn: c: %s sc: %s  c.sc2: %s packet: %s" % (self, sc, self.sc2, repr(packet)))     
 
         self.sc2 = sc
         sc.update(ts, packet)
