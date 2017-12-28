@@ -4476,10 +4476,11 @@ class StatisticMod(Mod):
     def account_general_tcp_data(self, sc, ts, packet):
         sc.user_data["packets-packets"] += 1
 
-        sc.user_data["link-layer-byte"]        += len(packet) + Info.ETHERNET_HEADER_LEN
-        sc.user_data["network-layer-byte"]     += int(len(packet))
-        sc.user_data["transport-layer-byte"]   += int(len(packet.data))
-        sc.user_data["application-layer-byte"] += int(len(packet.data.data))
+        pi = TcpPacketInfo(packet)
+        sc.user_data["link-layer-byte"]        += int(pi.linklen)
+        sc.user_data["network-layer-byte"]     += int(pi.iplen)
+        sc.user_data["transport-layer-byte"]   += int(pi.tcplen)
+        sc.user_data["application-layer-byte"] += int(pi.applen)
 
         # capture start and end on a per flow basis
         # This will be used for flow duration and flow throughput
@@ -4527,8 +4528,8 @@ class StatisticMod(Mod):
 
 
     def account_rexmt(self, sc, packet, pi, ts):
-        data_len = int(len(packet.data.data))
-        transport_len = int(len(packet.data))
+        data_len = int(pi.applen)
+        transport_len = int(pi.tcplen)
 
         actual_data = pi.seq + data_len
  
